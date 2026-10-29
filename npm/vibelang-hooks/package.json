@@ -1,0 +1,26 @@
+{
+  "name": "@smithersai/oxc-vibelang-hooks",
+  "version": "0.1.0-vibe.2",
+  "bin": {
+    "vibelang-oxfmt": "format.mjs",
+    "vibelang-oxlint": "bin/vibelang-oxlint"
+  },
+  "files": [
+    "format.mjs",
+    "compiler",
+    "build-preprocessor.mjs",
+    "README.md",
+    "bin",
+    "INSTALL.md"
+  ],
+  "type": "module",
+  "dependencies": {
+    "dprint": "0.64.3"
+  },
+  "peerDependencies": {
+    "vibelang": ">=0.0.11"
+  },
+  "engines": {
+    "node": ">=26"
+  }
+}

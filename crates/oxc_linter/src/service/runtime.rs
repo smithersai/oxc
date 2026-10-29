@@ -37,12 +37,13 @@ use crate::{
     utils::read_to_arena_str,
 };
 
-use super::LintServiceOptions;
+use super::{LintServiceOptions, preprocessor::Projection};
 
 type ModulesByPath =
     papaya::HashMap<Arc<OsStr>, SmallVec<[Arc<ModuleRecord>; 1]>, BuildHasherDefault<FxHasher>>;
 
 pub struct Runtime {
+    projections: Mutex<FxHashMap<PathBuf, Projection>>,
     cwd: Box<Path>,
     pub(super) linter: Linter,
     resolver: Option<Resolver>,
@@ -270,6 +271,7 @@ impl Runtime {
                 .resize_mode(papaya::ResizeMode::Blocking)
                 .build(),
             disable_directives_map: Arc::new(Mutex::new(FxHashMap::default())),
+            projections: Mutex::new(FxHashMap::default()),
         }
     }
 
@@ -654,6 +656,8 @@ impl Runtime {
                                 )),
                                 Err(messages) => {
                                     if !messages.is_empty() {
+                                        let messages =
+                                            me.remap_diagnostics(path, dep.source_text, messages);
                                         let diagnostics = DiagnosticService::wrap_diagnostics(
                                             &me.cwd,
                                             path,
@@ -688,7 +692,9 @@ impl Runtime {
                                 .insert(path.to_path_buf(), disable_directives);
                         }
 
-                        if me.linter.options().fix.is_some() {
+                        if me.linter.options().fix.is_some()
+                            && path.extension().is_none_or(|ext| ext != "vibe")
+                        {
                             let fix_result = Fixer::new(
                                 dep.source_text,
                                 messages,
@@ -715,6 +721,7 @@ impl Runtime {
 
                         if !messages.is_empty() {
                             let errors = messages.into_iter().map(Into::into).collect();
+                            let errors = me.remap_diagnostics(path, dep.source_text, errors);
                             let diagnostics = DiagnosticService::wrap_diagnostics(
                                 &me.cwd,
                                 path,
@@ -1064,6 +1071,22 @@ impl Runtime {
         }
     }
 
+    fn remap_diagnostics(
+        &self,
+        path: &Path,
+        original: &str,
+        diagnostics: Vec<OxcDiagnostic>,
+    ) -> Vec<OxcDiagnostic> {
+        let projections = self.projections.lock().expect("projection lock poisoned");
+        let Some(projection) = projections.get(path) else {
+            return diagnostics;
+        };
+        diagnostics
+            .into_iter()
+            .filter_map(|diagnostic| projection.remap(diagnostic, original))
+            .collect()
+    }
+
     #[expect(clippy::too_many_arguments)]
     fn process_source<'a>(
         &self,
@@ -1075,6 +1098,31 @@ impl Runtime {
         allocator: &'a Allocator,
         mut out_sections: Option<&mut SectionContents<'a>>,
     ) -> SmallVec<[Result<ResolvedModuleRecord, Vec<OxcDiagnostic>>; 1]> {
+        let source_text = if ext == "vibe" {
+            match Projection::load(path, source_text) {
+                Ok(projection) => {
+                    let code = allocator.alloc_str(&projection.code);
+                    self.projections
+                        .lock()
+                        .expect("projection lock poisoned")
+                        .insert(path.to_path_buf(), projection);
+                    code
+                }
+                Err(message) => {
+                    if let Some(sections) = &mut out_sections {
+                        sections.push(SectionContent {
+                            source: JavaScriptSource::partial(source_text, SourceType::ts(), 0),
+                            semantic: None,
+                            parser_tokens: ArenaBox::new_empty_boxed_slice(),
+                        });
+                    }
+                    return SmallVec::from_vec(vec![Err(vec![OxcDiagnostic::error(message)])]);
+                }
+            }
+        } else {
+            source_text
+        };
+        let source_type = if ext == "vibe" { SourceType::ts() } else { source_type };
         let section_sources = PartialLoader::parse(ext, source_text)
             .unwrap_or_else(|| vec![JavaScriptSource::partial(source_text, source_type, 0)]);
 

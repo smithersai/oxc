@@ -1,5 +1,6 @@
 mod config;
 pub mod embed;
+mod external_formatter;
 mod format;
 mod global_ignore;
 mod language;

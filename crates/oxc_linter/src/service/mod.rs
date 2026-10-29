@@ -10,6 +10,7 @@ use oxc_diagnostics::DiagnosticSender;
 
 use crate::{Linter, RuleTimingStore, suppression::DiffManager};
 
+mod preprocessor;
 mod runtime;
 use runtime::Runtime;
 pub use runtime::{OsFileSystem, RuntimeFileSystem};

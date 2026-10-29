@@ -28,6 +28,9 @@ pub fn classify_file(path: &Path) -> Option<FormatStrategy> {
     }
     let ext = path.extension().and_then(|ext| ext.to_str()).unwrap_or_default();
 
+    if ext == "vibe" {
+        return Some(FormatStrategy::External);
+    }
     if is_extra_js_file(file_name, ext) {
         return Some(FormatStrategy::Native(NativeLanguage::Js(SourceType::default())));
     }
@@ -90,6 +93,8 @@ pub fn classify_as(language: Language, path: &Path) -> Option<FormatStrategy> {
 /// Consumed by the resolver to construct a [`super::FormatPlan`] with the resolved config.
 #[derive(Debug)]
 pub enum FormatStrategy {
+    /// External VibeLang formatter; all walk/check/write behavior stays in Oxfmt.
+    External,
     /// Files formatted by a Rust formatter (`oxc_formatter_*`).
     Native(NativeLanguage),
     /// `package.json`: sorted by `sort-package-json`,
@@ -108,6 +113,7 @@ impl FormatStrategy {
     pub fn trace_label(&self) -> &'static str {
         match self {
             Self::Native(language) => language.trace_label(),
+            Self::External => "external",
             Self::PackageJson => "package_json",
             Self::YamlRc => "yaml_rc",
             #[cfg(feature = "napi")]

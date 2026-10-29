@@ -78,6 +78,7 @@ impl SourceFormatter {
         // Roots with a session take options from their dispatch config,
         // others map them directly without building one.
         let result = match strategy {
+            FormatStrategy::External => super::external_formatter::format(&path, source_text),
             FormatStrategy::Native(NativeLanguage::Js(source_type)) => {
                 let allocator = self.allocator_pool.get();
                 let dispatch_config =

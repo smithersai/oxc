@@ -4,6 +4,7 @@ packages:
   - packages/*
   - wasm/*
   - npm/*
+  - '!npm/vibelang-hooks'
   - tasks/codegen_conformance
   - tasks/e2e
   - tasks/transform_conformance
