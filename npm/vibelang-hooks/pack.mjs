@@ -73,3 +73,14 @@ for (const tool of ["oxlint", "oxfmt", "oxc-vibelang-hooks"]) {
   });
   if (result.error || result.status !== 0) throw result.error ?? new Error("npm pack failed");
 }
+
+// Produce version-isolated packages for the migration pins. The 0.75 package
+// above is only the native hook engine used as input, not a repo replacement.
+for (const version of ["0.74.0", "0.66.0"]) {
+  const result = spawnSync(
+    process.execPath,
+    [new URL("./pack-compat.mjs", import.meta.url).pathname, join(out, "oxfmt"), version, out],
+    { stdio: "inherit" },
+  );
+  if (result.error || result.status !== 0) throw result.error ?? new Error("compat pack failed");
+}
