@@ -36,6 +36,9 @@ Segments must be ordered and non-overlapping in generated text, in bounds and
 at character boundaries. Gaps represent synthetic code. Equal-length segments
 map byte for byte; other segments map to their whole original source range.
 No shell is used. Concurrent input and output prevent pipe deadlocks.
+The VibeLang preprocessor lints a file whose forms only the project's types
+decide (EK9100, EK9101, EK2003): the whole-project compiler reports the real
+errors among them. Its other diagnostics still fail closed.
 
 ## Build and install
 

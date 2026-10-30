@@ -26,8 +26,14 @@ func main() {
 		fail(err)
 	}
 	projection := vibelangmapper.Executable(string(text), vibelangmapper.FileContext{FileName: file, ModuleKey: file})
-	if len(projection.Diagnostics) != 0 {
-		for _, diagnostic := range projection.Diagnostics {
+	var blocking []vibelangmapper.Diagnostic
+	for _, diagnostic := range projection.Diagnostics {
+		if !typeDirected[diagnostic.Code] {
+			blocking = append(blocking, diagnostic)
+		}
+	}
+	if projection.Text == "" || len(blocking) != 0 {
+		for _, diagnostic := range blocking {
 			fmt.Fprintf(os.Stderr, "%s:%d: EK%d: %s\n", file, diagnostic.Start, diagnostic.Code, diagnostic.Message)
 		}
 		os.Exit(1)
@@ -51,3 +57,16 @@ func main() {
 }
 
 func fail(err error) { fmt.Fprintln(os.Stderr, err); os.Exit(2) }
+
+// typeDirected holds the projector's diagnostics that one file's text cannot
+// settle: whether a lambda is a plain or an Effect function (EK9100), which
+// module a data method calls (EK9101), and whether a call under a plain
+// contract runs an Effect (EK2003). The whole-project compiler decides each
+// from the program's types and reports the real errors among them, so the
+// linter lints the rendering instead of refusing a file that compiles. Every
+// other diagnostic still fails closed.
+var typeDirected = map[int32]bool{
+	vibelangmapper.CodeFormChoice:          true,
+	vibelangmapper.CodeDataMethod:          true,
+	vibelangmapper.CodePlainContractEffect: true,
+}
